@@ -51,8 +51,8 @@ bot.on("message:text", async (ctx) => {
     const stateRes = await db.query("SELECT * FROM users_state WHERE user_id = \$1", [userId]);
     if (stateRes.rows.length === 0) return;
 
-    const userState = stateRes.rows[0].state; // ИСПРАВЛЕНО: добавлено [0]
-    const userData = stateRes.rows[0].data;   // ИСПРАВЛЕНО: добавлено [0]
+    const userState = stateRes.rows[0].state; 
+    const userData = stateRes.rows[0].data;   
 
     if (userState === "WAITING_CAPTCHA") {
         const parts = userData.split("|");
@@ -79,8 +79,8 @@ bot.on("message:text", async (ctx) => {
 
         try {
             const currentRating = await db.query("SELECT * FROM ratings WHERE id = \$1", [ratingId]);
-            const stars = currentRating.rows[0].stars; // ИСПРАВЛЕНО: добавлено [0]
-            const resId = currentRating.rows[0].short_id; // ИСПРАВЛЕНО: добавлено [0]
+            const stars = currentRating.rows[0].stars; 
+            const resId = currentRating.rows[0].short_id; 
             
             let reportToAdmin = "💬 **Новый отзыв от пользователя!**\n\n";
             reportToAdmin += "👤 ID: `" + userId + "`\n";
@@ -115,13 +115,17 @@ bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     const userId = ctx.from.id;
 
+    if (data === "clicks_stat" || data === "welcome_click") {
+        return ctx.answerCallbackQuery();
+    }
+
     if (data === "check_sub") {
         const isSubbed = await checkSubscription(ctx, userId);
         if (isSubbed) {
             await ctx.answerCallbackQuery("✅ Подписка подтверждена!");
             const pending = await db.query("SELECT * FROM users_state WHERE user_id = \$1 AND state = 'PENDING_SUB'", [userId]);
             if (pending.rows.length > 0) {
-                const targetShortId = pending.rows[0].data; // ИСПРАВЛЕНО: добавлено [0]
+                const targetShortId = pending.rows[0].data; 
                 await db.query("DELETE FROM users_state WHERE user_id = \$1", [userId]);
                 return sendCaptcha(ctx, db, userId, targetShortId);
             }
@@ -159,13 +163,14 @@ bot.on("callback_query:data", async (ctx) => {
 
     if (data.startsWith("rate_")) {
         const targetShortId = data.replace("rate_", "");
+        // Интегрируем кастомный эмодзи звезды (6028338546736107668) в инлайн-кнопки
         const starKeyboard = new InlineKeyboard()
-            .text("1⭐", "setstar_1_" + targetShortId)
-            .text("2⭐", "setstar_2_" + targetShortId)
-            .text("3⭐", "setstar_3_" + targetShortId)
-            .text("4⭐", "setstar_4_" + targetShortId)
-            .text("5⭐", "setstar_5_" + targetShortId);
-        await ctx.reply("Выберите оценку:", { reply_markup: starKeyboard, parse_mode: "Markdown" });
+            .text("<tg-emoji emoji-id=\"6028338546736107668\">1⭐</tg-emoji>", "setstar_1_" + targetShortId)
+            .text("<tg-emoji emoji-id=\"6028338546736107668\">2⭐</tg-emoji>", "setstar_2_" + targetShortId)
+            .text("<tg-emoji emoji-id=\"6028338546736107668\">3⭐</tg-emoji>", "setstar_3_" + targetShortId)
+            .text("<tg-emoji emoji-id=\"6028338546736107668\">4⭐</tg-emoji>", "setstar_4_" + targetShortId)
+            .text("<tg-emoji emoji-id=\"6028338546736107668\">5⭐</tg-emoji>", "setstar_5_" + targetShortId);
+        await ctx.reply("Выберите оценку ресурса:", { reply_markup: starKeyboard, parse_mode: "HTML" });
         await ctx.answerCallbackQuery();
     }
 
@@ -175,10 +180,10 @@ bot.on("callback_query:data", async (ctx) => {
         const targetShortId = parts[2];
 
         const insertRes = await db.query("INSERT INTO ratings (user_id, short_id, stars) VALUES (\$1, \$2, \$3) RETURNING id", [userId, targetShortId, stars]);
-        const ratingId = insertRes.rows[0].id; // ИСПРАВЛЕНО: добавлено [0]
+        const ratingId = insertRes.rows[0].id; 
 
         await db.query("INSERT INTO users_state (user_id, state) VALUES (\$1, \$2) ON CONFLICT (user_id) DO UPDATE SET state = \$2", [userId, "WAITING_REVIEW_TEXT_" + ratingId]);
-        await ctx.reply("Напишите краткий отзыв в ответном сообщении:");
+        await ctx.reply("Вы поставили " + stars + " звезд(ы)! Напишите краткий отзыв в ответном сообщении:");
         await ctx.answerCallbackQuery();
     }
 });
