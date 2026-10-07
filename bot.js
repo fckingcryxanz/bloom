@@ -163,16 +163,16 @@ bot.on("callback_query:data", async (ctx) => {
 
     if (data.startsWith("rate_")) {
         const targetShortId = data.replace("rate_", "");
-        // Интегрируем кастомный эмодзи звезды (6028338546736107668) в инлайн-кнопки
         const starKeyboard = new InlineKeyboard()
-            .text("<tg-emoji emoji-id=\"6028338546736107668\">1⭐</tg-emoji>", "setstar_1_" + targetShortId)
-            .text("<tg-emoji emoji-id=\"6028338546736107668\">2⭐</tg-emoji>", "setstar_2_" + targetShortId)
-            .text("<tg-emoji emoji-id=\"6028338546736107668\">3⭐</tg-emoji>", "setstar_3_" + targetShortId)
-            .text("<tg-emoji emoji-id=\"6028338546736107668\">4⭐</tg-emoji>", "setstar_4_" + targetShortId)
-            .text("<tg-emoji emoji-id=\"6028338546736107668\">5⭐</tg-emoji>", "setstar_5_" + targetShortId);
-        await ctx.reply("Выберите оценку ресурса:", { reply_markup: starKeyboard, parse_mode: "HTML" });
+            .text("1 ⭐️", "setstar_1_" + targetShortId)
+            .text("2 ⭐️", "setstar_2_" + targetShortId)
+            .text("3 ⭐️", "setstar_3_" + targetShortId)
+            .text("4 ⭐️", "setstar_4_" + targetShortId)
+            .text("5 ⭐️", "setstar_5_" + targetShortId);
+        await ctx.reply("Выберите оценку ресурса:", { reply_markup: starKeyboard });
         await ctx.answerCallbackQuery();
     }
+
 
     if (data.startsWith("setstar_")) {
         const parts = data.split("_");
