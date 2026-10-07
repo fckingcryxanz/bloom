@@ -15,23 +15,22 @@ async function checkSubscription(ctx, userId) {
 }
 
 async function sendSubscriptionRequire(ctx) {
-    // Устанавливаем эмодзи 6113862083017711187 на кнопку перехода на канал
+    // В тексте кнопок разметка HTML не поддерживается — убираем теги оттуда, чтобы они не выводились текстом
     const keyboard = new InlineKeyboard()
-        .url("<tg-emoji emoji-id=\"6113862083017711187\">📢</tg-emoji> Перейти в Bloom", "https://t.me")
+        .url("📢 Перейти в Bloom", "https://t.me")
         .row()
-        .text("<tg-emoji emoji-id=\"5258420634785947640\">✔️</tg-emoji> Я выполнил все условия - Проверить.", "check_sub");
+        .text("Я выполнил все условия - Проверить.", "check_sub");
 
-    const msg = "Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».\n\n*(с премиум подпиской у вас не будет никакой рекламы)*";
+    // Переносим премиум-эмодзи (6113862083017711187 и 5258420634785947640) прямо в текст сообщения с включенным HTML
+    const msg = "<tg-emoji emoji-id=\"6113862083017711187\">📢</tg-emoji> <tg-emoji emoji-id=\"5258420634785947640\">⚠️</tg-emoji> <b>Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».</b>\n\n(с премиум подпиской у вас не будет никакой рекламы)";
     
+    // Исправлено: жестко задаем parse_mode: "HTML", чтобы теги превратились в анимированные эмодзи
     return ctx.reply(msg, { reply_markup: keyboard, parse_mode: "HTML" });
 }
 
 async function sendWelcomeScreen(ctx) {
     const welcomeText = "<tg-emoji emoji-id=\"5406736391071635215\">👋</tg-emoji> <b>Привет! Добро пожаловать в RoomDev.</b>\n\nЗдесь ты можешь получить ресурсы с нашего Discord-сервера.\nПерейди по ссылке-инвайту, чтобы получить нужный файл.";
     const imagePath = path.join(__dirname, "images", "welcome.jpg");
-
-    const welcomeKeyboard = new InlineKeyboard()
-        .text("<tg-emoji emoji-id=\"5406736391071635215\">👋</tg-emoji> Добро пожаловать!", "welcome_click");
 
     try {
         if (fs.existsSync(imagePath)) {
@@ -69,12 +68,12 @@ async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
             const avg = rateRes.rows[0].avg_stars ? Number(rateRes.rows[0].avg_stars).toFixed(1) : "0.0";
 
             const fileKeyboard = new InlineKeyboard()
-                .text("<tg-emoji emoji-id=\"5404460960347890242\">⭐</tg-emoji> Оценить ресурс (" + avg + "/5)", "rate_" + targetShortId);
+                .text("⭐ Оценить ресурс (" + avg + "/5)", "rate_" + targetShortId);
 
-            // 1. Установили эмодзи 6113862083017711187 на статус "Капча пройдена"
+            // Выводим статус пройденной капчи с эмодзи 6113862083017711187
             await ctx.reply("<tg-emoji emoji-id=\"6113862083017711187\">✅</tg-emoji> <b>Капча пройдена!</b>\nСлово: " + correctWord, { parse_mode: "HTML" });
 
-            // 2. Установили эмодзи 5407103881358380847 на "Количество отзывов"
+            // Выводим информацию о файле с эмодзи отзывов 5407103881358380847
             const captionText = "<tg-emoji emoji-id=\"5404467901015037890\">📥</tg-emoji> <b>RW " + fileRow.file_name + "</b>\n\n" +
                 "<tg-emoji emoji-id=\"5406915890639835169\">🔝</tg-emoji> Скачиваний: " + (Number(fileRow.clicks) + 1) + "\n" +
                 "<tg-emoji emoji-id=\"5407103881358380847\">💬</tg-emoji> Количество отзывов: " + count + "\n\n" +
