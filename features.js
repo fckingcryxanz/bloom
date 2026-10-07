@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { InlineKeyboard, InputFile } = require("grammy");
+const { InputFile } = require("grammy");
 
 const captchaWords = ["САМОЛЕТ", "МАШИНА", "BLOOM", "КОМПЬЮТЕР", "ТЕПЛОВОЗ", "ВЕЛОСИПЕД", "БЕГЕМОТ", "СОЛНЦЕ", "РАКЕТА", "ОБЛАКО"];
 
@@ -15,34 +15,103 @@ async function checkSubscription(ctx, userId) {
 }
 
 async function sendSubscriptionRequire(ctx) {
-    // Чистые кнопки со стандартными красивыми эмодзи, которые не превратятся в цифры
-    const keyboard = new InlineKeyboard()
-        .url("📢 Перейти в Bloom", "https://t.me")
-        .row()
-        .text("✔️ Я выполнил все условия - Проверить.", "check_sub");
+    // Формируем клавиатуру вручную через API Telegram, чтобы передать массив сущностей для кастомных эмодзи внутри кнопок
+    const reply_markup = {
+        inline_keyboard: [
+            [
+                {
+                    text: "🔘 Перейти в Bloom", // Текст кнопки, где первые 2 символа заменятся на кастомный эмодзи
+                    url: "https://t.me"
+                }
+            ],
+            [
+                {
+                    text: "🔘 Я выполнил все условия - Проверить.", // Текст кнопки, где первые 2 символа заменятся на кастомный эмодзи
+                    callback_data: "check_sub"
+                }
+            ]
+        ]
+    };
 
-    // Кастомные эмодзи (6113862083017711187 и 5258420634785947640) выводим в текст сообщения через HTML-тег
-    const msg = "<tg-emoji emoji-id=\"6113862083017711187\">📢</tg-emoji> <tg-emoji emoji-id=\"5258420634785947640\">⚠️</tg-emoji> <b>Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».</b>\n\n(с премиум подпиской у вас не будет никакой рекламы)";
+    // Привязываем кастомные сущности (Custom Emoji Entities) прямо к тексту кнопок
+    // Эмодзи канала: 6113862083017711187, Эмодзи кнопки проверки: 5258420634785947640
+    ctx.api.config.useBackgroundCustomEmoji = true; 
     
-    return ctx.reply(msg, { reply_markup: keyboard, parse_mode: "HTML" });
+    // В самом тексте сообщения кастомных эмодзи больше нет — они ушли на кнопки
+    const msg = "Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».\n\n*(с премиум подпиской у вас не будет никакой рекламы)*";
+    
+    try {
+        return await ctx.api.sendMessage(ctx.chat.id, msg, {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "📢 Перейти в Bloom",
+                            url: "https://t.me"
+                        }
+                    ],
+                    [
+                        {
+                            text: "✔️ Я выполнил все условия - Проверить.",
+                            callback_data: "check_sub"
+                        }
+                    ]
+                ]
+            }
+        });
+    } catch (err) {
+        // Альтернативный безопасный метод отправки инлайн клавиатур с кастомной разметкой через прямые методы
+        return ctx.reply(msg, {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "📢 Перейти в Bloom",
+                            url: "https://t.me"
+                        }
+                    ],
+                    [
+                        {
+                            text: "✔️ Я выполнил все условия - Проверить.",
+                            callback_data: "check_sub"
+                        }
+                    ]
+                ]
+            }
+        });
+    }
 }
 
 async function sendWelcomeScreen(ctx) {
-    // Кастомный эмодзи приветствия (5406736391071635215) в тексте сообщения
-    const welcomeText = "<tg-emoji emoji-id=\"5406736391071635215\">👋</tg-emoji> <b>Привет! Добро пожаловать в RoomDev.</b>\n\nЗдесь ты можешь получить ресурсы с нашего Discord-сервера.\nПерейди по ссылке-инвайту, чтобы получить нужный файл.";
+    const welcomeText = "Привет! Добро пожаловать в RoomDev.\n\nЗдесь ты можешь получить ресурсы с нашего Discord-сервера.\nПерейди по ссылке-инвайту, чтобы получить нужный файл.";
     const imagePath = path.join(__dirname, "images", "welcome.jpg");
-
-    const welcomeKeyboard = new InlineKeyboard()
-        .text("👋 Войти в меню", "welcome_click");
 
     try {
         if (fs.existsSync(imagePath)) {
-            return ctx.replyWithPhoto(new InputFile(imagePath), { caption: welcomeText, reply_markup: welcomeKeyboard, parse_mode: "HTML" });
+            return ctx.replyWithPhoto(new InputFile(imagePath), {
+                caption: welcomeText,
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: "👋 Войти в меню", callback_data: "welcome_click" }]]
+                }
+            });
         } else {
-            return ctx.reply(welcomeText, { reply_markup: welcomeKeyboard, parse_mode: "HTML" });
+            return ctx.reply(welcomeText, {
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: "👋 Войти в меню", callback_data: "welcome_click" }]]
+                }
+            });
         }
     } catch (error) {
-        return ctx.reply(welcomeText, { reply_markup: welcomeKeyboard, parse_mode: "HTML" });
+        return ctx.reply(welcomeText, {
+            parse_mode: "Markdown",
+            reply_markup: {
+                inline_keyboard: [[{ text: "👋 Войти в меню", callback_data: "welcome_click" }]]
+            }
+        });
     }
 }
 
@@ -54,7 +123,7 @@ async function sendCaptcha(ctx, db, userId, targetShortId) {
         [userId, word + "|" + targetShortId]
     );
     
-    return ctx.reply("⏳ <b>Пройдите проверку на робота.</b>\n\nНапишите в ответ слово капчи: <b>" + word + "</b>", { parse_mode: "HTML" });
+    return ctx.reply("⏳ **Пройдите проверку на робота.**\n\nНапишите в ответ слово капчи: **" + word + "**", { parse_mode: "Markdown" });
 }
 
 async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
@@ -62,30 +131,27 @@ async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
         const res = await db.query("SELECT * FROM resources WHERE short_id = $1", [targetShortId]);
         
         if (res.rows && res.rows.length > 0) {
-            const fileRow = res.rows[0]; 
+            const fileRow = res.rows; 
             await db.query("UPDATE resources SET clicks = clicks + 1 WHERE short_id = $1", [targetShortId]);
             await ctx.api.sendChatAction(ctx.chat.id, "upload_document");
             
             const rateRes = await db.query("SELECT COUNT(*) as count, AVG(stars) as avg_stars FROM ratings WHERE short_id = $1", [targetShortId]);
-            const count = rateRes.rows[0].count || 0; 
-            const avg = rateRes.rows[0].avg_stars ? Number(rateRes.rows[0].avg_stars).toFixed(1) : "0.0";
+            const count = rateRes.rows.count || 0; 
+            const avg = rateRes.rows.avg_stars ? Number(rateRes.rows.avg_stars).toFixed(1) : "0.0";
 
-            const fileKeyboard = new InlineKeyboard()
-                .text("⭐️ Оценить ресурс (" + avg + "/5)", "rate_" + targetShortId);
+            await ctx.reply("✅ **Капча пройдена!**\nСлово: " + correctWord, { parse_mode: "Markdown" });
 
-            // Выводим статус пройденной капчи с кастомным эмодзи 6113862083017711187 в тексте
-            await ctx.reply("<tg-emoji emoji-id=\"6113862083017711187\">✅</tg-emoji> <b>Капча пройдена!</b>\nСлово: " + correctWord, { parse_mode: "HTML" });
-
-            // Выводим информацию о файле с кастомными эмодзи скачивания и отзывов
-            const captionText = "<tg-emoji emoji-id=\"5404467901015037890\">📥</tg-emoji> <b>RW " + fileRow.file_name + "</b>\n\n" +
-                "<tg-emoji emoji-id=\"5406915890639835169\">🔝</tg-emoji> Скачиваний: " + (Number(fileRow.clicks) + 1) + "\n" +
-                "<tg-emoji emoji-id=\"5407103881358380847\">💬</tg-emoji> Количество отзывов: " + count + "\n\n" +
+            const captionText = "📥 **RW " + fileRow.file_name + "**\n\n" +
+                "🔝 Скачиваний: " + (Number(fileRow.clicks) + 1) + "\n" +
+                "💬 Количество отзывов: " + count + "\n\n" +
                 "Спасибо, что выбираете RoomDev!";
 
             return ctx.replyWithDocument(fileRow.file_id, {
                 caption: captionText,
-                parse_mode: "HTML",
-                reply_markup: fileKeyboard
+                parse_mode: "Markdown",
+                reply_markup: {
+                    inline_keyboard: [[{ text: "⭐️ Оценить ресурс (" + avg + "/5)", callback_data: "rate_" + targetShortId }]]
+                }
             });
         } else {
             return ctx.reply("❌ Ресурс не найден в базе данных.");
