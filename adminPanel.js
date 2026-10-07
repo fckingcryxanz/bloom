@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { InlineKeyboard } = require("grammy");
+const { InlineKeyboard, InputFile } = require("grammy");
 
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 
@@ -27,7 +27,7 @@ async function sendAdminPanel(ctx, db) {
 
     try {
         if (fs.existsSync(imagePath)) {
-            await ctx.replyWithPhoto(new require("grammy").InputFile(imagePath), { caption: adminMsg, reply_markup: adminKeyboard, parse_mode: "Markdown" });
+            await ctx.replyWithPhoto(new InputFile(imagePath), { caption: adminMsg, reply_markup: adminKeyboard, parse_mode: "Markdown" });
         } else {
             await ctx.reply(adminMsg, { reply_markup: adminKeyboard, parse_mode: "Markdown" });
         }
