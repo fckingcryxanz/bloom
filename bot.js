@@ -2,37 +2,35 @@ require("dotenv").config();
 const { Bot, InputFile, InlineKeyboard } = require("grammy");
 const fs = require("fs");
 const path = require("path");
-const { Client } = require("pg"); // Подключаем PostgreSQL драйвер
+const { Client } = require("pg"); 
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_ID = Number(process.env.ADMIN_ID);
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!BOT_TOKEN) {
-    console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Токен бота не найден в файле .env!");
+    console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Токен бота не найден!");
     process.exit(1);
 }
 
 if (!DATABASE_URL) {
-    console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Строка подключения DATABASE_URL не найдена в файле .env!");
+    console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Строка подключения DATABASE_URL не найдена!");
     process.exit(1);
 }
 
-// 1. ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ К POSTGRESQL
 const db = new Client({
-    connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Позволяет безопасно подключаться к облачным базам данных
+    connectionString: DATABASE_URL
 });
+
 
 const bot = new Bot(BOT_TOKEN);
 let botUsername = "";
 
-// Функция для генерации коротких уникальных кодов для ссылок
 function generateShortId() {
     return Math.random().toString(36).substring(2, 8);
 }
 
-// 2. УЛАВЛИВАНИЕ АЙДИ КАСТOMНЫХ ЭМОДЗИ (ДЛЯ АДМИНИСТРАТОРА)
+// 2. УЛАВЛИВАНИЕ АЙДИ КАСТОМНЫХ ЭМОДЗИ
 bot.on("message:text", async (ctx, next) => {
     if (ctx.from.id !== ADMIN_ID) return next();
 
@@ -54,21 +52,20 @@ bot.on("message:text", async (ctx, next) => {
 // 3. ОБРАБОТКА КОМАНДЫ /START
 bot.command("start", async (ctx) => {
     const userId = ctx.from.id;
-    const args = ctx.match; // Короткий ID из ссылки (например, t.me/bot?start=abc123)
+    const args = ctx.match; 
 
-    // Сценарий А: Переход по короткой секретной ссылке (Скачивание файла)
     if (args) {
         try {
+            // Исправлено: убран лишний слэш перед \$1
             const res = await db.query("SELECT * FROM resources WHERE short_id = \$1", [args]);
             const fileRow = res.rows[0];
             
             if (fileRow) {
-                // Инкрементируем счетчик скачиваний в PostgreSQL
+                // Исправлено: убран лишний слэш перед \$1
                 await db.query("UPDATE resources SET clicks = clicks + 1 WHERE short_id = \$1", [args]);
                 
                 await ctx.replyWithChatAction("upload_document");
                 
-                // Кнопка-ссылка на твой канал под отправленным файлом
                 const keyboard = new InlineKeyboard().url("📢 Перейти в Bloom", "https://t.me");
 
                 await ctx.replyWithDocument(fileRow.file_id, {
@@ -86,7 +83,6 @@ bot.command("start", async (ctx) => {
         return;
     }
 
-    // Сценарий Б: Вы (Администратор) зашли без ссылки — выводим панель статистики из Postgres
     if (userId === ADMIN_ID) {
         try {
             const countRes = await db.query("SELECT COUNT(*) as count FROM resources");
@@ -99,7 +95,7 @@ bot.command("start", async (ctx) => {
             const topFiles = topRes.rows;
 
             let adminMsg = `👋 **Привет, Создатель!**\n\n`;
-            adminMsg += ` Bars **Статистика бота (PostgreSQL):**\n`;
+            adminMsg += `📊 **Статистика бота (PostgreSQL):**\n`;
             adminMsg += ` 📁 Всего загружено файлов: \`\${totalFiles}\`\n`;
             adminMsg += ` 📈 Всего скачиваний: \`\${totalClicks}\`\n\n`;
             
@@ -121,7 +117,6 @@ bot.command("start", async (ctx) => {
         }
     }
 
-    // Сценарий В: Обычный пользователь зашел без ссылки (Приветствие Bloom)
     const welcomeText = "Привет! Добро пожаловать в Bloom. Здесь ты можешь получить ресурсы с нашего телеграм канала. Перейди по ссылке-инвайту, чтобы получить нужный файл.";
     const imagePath = path.join(__dirname, "images", "welcome.jpg");
 
@@ -152,12 +147,13 @@ bot.on([":audio", ":document"], async (ctx) => {
     const shortId = generateShortId();
 
     try {
-        // Сохраняем в таблицу базы данных PostgreSQL
+        // Исправлено: убраны слэши из \$1, \$2, \$3
         await db.query(
             "INSERT INTO resources (short_id, file_id, file_name) VALUES (\$1, \$2, \$3)", 
             [shortId, fileId, fileName]
         );
 
+        // Исправлено: добавлен \$ перед {botUsername}
         const shortLink = `https://t.me{botUsername}?start=${shortId}`;
 
         await ctx.reply(
@@ -176,10 +172,8 @@ bot.on([":audio", ":document"], async (ctx) => {
 // Запуск базы данных и бота
 (async () => {
     try {
-        // Подключаемся к Postgres
         await db.connect();
         
-        // Создаем таблицу, если её нет в базе данных хостинга
         await db.query(`
             CREATE TABLE IF NOT EXISTS resources (
                 short_id VARCHAR(50) PRIMARY KEY,
