@@ -2,7 +2,6 @@ require("dotenv").config();
 const { Bot, InlineKeyboard } = require("grammy");
 const { Client } = require("pg");
 
-// Подключаем наши новые созданные модули
 const { registerEmojiHandler } = require("./emojiHandler");
 const { checkSubscription, sendSubscriptionRequire, sendWelcomeScreen, sendCaptcha, handleFileDelivery } = require("./features");
 const { sendAdminPanel } = require("./adminPanel");
@@ -20,10 +19,8 @@ const db = new Client({ connectionString: DATABASE_URL });
 const bot = new Bot(BOT_TOKEN);
 let botUsername = "";
 
-// Регистрируем модуль перехвата кастомных эмодзи
 registerEmojiHandler(bot);
 
-// Обработка /start
 bot.command("start", async (ctx) => {
     const userId = ctx.from.id;
     const args = ctx.match; 
@@ -49,7 +46,6 @@ bot.command("start", async (ctx) => {
     return sendWelcomeScreen(ctx);
 });
 
-// Роутер текстовых сообщений
 bot.on("message:text", async (ctx) => {
     const userId = ctx.from.id;
     const stateRes = await db.query("SELECT * FROM users_state WHERE user_id = \$1", [userId]);
@@ -63,7 +59,7 @@ bot.on("message:text", async (ctx) => {
         const correctWord = parts[0];
         const targetShortId = parts[1];
 
-        if (ctx.message.text.trim().toUpperCase() === correctWord) {
+        if (ctx.message.text.trim().toUpperCase() === correctWord.toUpperCase()) {
             await db.query("DELETE FROM users_state WHERE user_id = \$1", [userId]);
             await ctx.reply("✅ Капча пройдена!\nСлово: " + correctWord);
             await handleFileDelivery(ctx, db, correctWord, targetShortId, userId);
@@ -115,7 +111,6 @@ bot.on("message:text", async (ctx) => {
     }
 });
 
-// Обработка инлайн кнопок
 bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     const userId = ctx.from.id;
@@ -132,7 +127,7 @@ bot.on("callback_query:data", async (ctx) => {
             }
             return sendWelcomeScreen(ctx);
         } else {
-            await ctx.answerCallbackQuery({ text: "❌ Вы не подписались на канал @bloomhold!", show_alert: true });
+            await ctx.answerCallbackQuery({ text: "❌ Вы не подписались на канал @bloomhold или бот не админ!", show_alert: true });
         }
     }
 
@@ -188,7 +183,6 @@ bot.on("callback_query:data", async (ctx) => {
     }
 });
 
-// Добавление новых ресурсов
 bot.on([":audio", ":document"], async (ctx) => {
     if (ctx.from.id !== ADMIN_ID) return;
     const fileId = ctx.message.audio ? ctx.message.audio.file_id : ctx.message.document.file_id;
@@ -202,7 +196,6 @@ bot.on([":audio", ":document"], async (ctx) => {
     } catch (e) { await ctx.reply("❌ Ошибка сохранения."); }
 });
 
-// Старт сервера
 (async () => {
     try {
         await db.connect();

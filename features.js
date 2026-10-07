@@ -1,17 +1,16 @@
 const fs = require("fs");
 const path = require("path");
-const { InlineKeyboard } = require("grammy");
+const { InlineKeyboard, InputFile } = require("grammy");
 
 const captchaWords = ["САМОЛЕТ", "МАШИНА", "BLOOM", "КОМПЬЮТЕР", "ТЕПЛОВОЗ", "ВЕЛОСИПЕД", "БЕГЕМОТ", "СОЛНЦЕ", "РАКЕТА", "ОБЛАКО"];
-const ADMIN_ID = Number(process.env.ADMIN_ID);
 
 async function checkSubscription(ctx, userId) {
     try {
         const member = await ctx.api.getChatMember("@bloomhold", userId);
         return ["creator", "administrator", "member"].includes(member.status);
     } catch (e) {
-        console.error("Ошибка при проверке подписки: ", e);
-        return true; 
+        console.error("⚠️ ВНИМАНИЕ: Ошибка проверки подписки. Добавьте бота в канал @bloomhold как АДМИНИСТРАТОР!");
+        return false; // Теперь жестко требуем подписку. Если бот не админ — вернет false
     }
 }
 
@@ -22,7 +21,8 @@ async function sendSubscriptionRequire(ctx) {
         .text("Я выполнил все условия - Проверить.", "check_sub");
 
     const msg = "<tg-emoji emoji-id=\"5258420634785947640\"> Sponsor </tg-emoji> Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите «Проверить».\n(с премиум подпиской у вас не будет никакой рекламы)";
-    await ctx.reply(msg, { reply_markup: keyboard, parse_mode: "HTML" });
+    
+    return ctx.reply(msg, { reply_markup: keyboard, parse_mode: "HTML" });
 }
 
 async function sendWelcomeScreen(ctx) {
@@ -31,30 +31,32 @@ async function sendWelcomeScreen(ctx) {
 
     try {
         if (fs.existsSync(imagePath)) {
-            await ctx.replyWithPhoto(new new require("grammy").InputFile(imagePath), { caption: welcomeText, parse_mode: "HTML" });
+            return ctx.replyWithPhoto(new InputFile(imagePath), { caption: welcomeText, parse_mode: "HTML" });
         } else {
-            await ctx.reply(welcomeText, { parse_mode: "HTML" });
+            return ctx.reply(welcomeText, { parse_mode: "HTML" });
         }
     } catch (error) {
-        await ctx.reply(welcomeText, { parse_mode: "HTML" }).catch(() => {});
+        return ctx.reply(welcomeText, { parse_mode: "HTML" });
     }
 }
 
 async function sendCaptcha(ctx, db, userId, targetShortId) {
     const word = captchaWords[Math.floor(Math.random() * captchaWords.length)];
+    
     await db.query(
         "INSERT INTO users_state (user_id, state, data) VALUES ($1, 'WAITING_CAPTCHA', $2) ON CONFLICT (user_id) DO UPDATE SET state = 'WAITING_CAPTCHA', data = $2",
         [userId, word + "|" + targetShortId]
     );
-    await ctx.reply("⏳ **Пройдите проверку на робота.**\nНапишите в ответ слово капчи: **" + word + "**", { parse_mode: "Markdown" });
+    
+    return ctx.reply("⏳ **Пройдите проверку на робота.**\nНапишите в ответ слово капчи: **" + word + "**", { parse_mode: "Markdown" });
 }
 
 async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
     try {
         const res = await db.query("SELECT * FROM resources WHERE short_id = $1", [targetShortId]);
-        const fileRow = res.rows[0];
         
-        if (fileRow) {
+        if (res.rows.length > 0) {
+            const fileRow = res.rows[0];
             await db.query("UPDATE resources SET clicks = clicks + 1 WHERE short_id = $1", [targetShortId]);
             await ctx.replyWithChatAction("upload_document");
             
@@ -66,22 +68,22 @@ async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
                 .text("<tg-emoji emoji-id=\"5404460960347890242\">⭐</tg-emoji> Оценить ресурс", "rate_" + targetShortId);
 
             const captionText = "<tg-emoji emoji-id=\"5404467901015037890\">📥</tg-emoji> **RW " + fileRow.file_name + "**\n\n" +
-                "<tg-emoji emoji-id=\"5406915890639835169\">🔝</tg-emoji> Скачиваний: " + (fileRow.clicks + 1) + "\n" +
+                "<tg-emoji emoji-id=\"5406915890639835169\">🔝</tg-emoji> Скачиваний: " + (fileRow.clicks) + "\n" +
                 "⚪ Оценка: " + avg + "/5 (оценок: " + count + ")\n\n" +
                 "Спасибо, что выбираете RoomDev!";
 
-            await ctx.replyWithDocument(fileRow.file_id, {
+            return ctx.replyWithDocument(fileRow.file_id, {
                 caption: captionText,
                 parse_mode: "Markdown",
                 reply_markup: fileKeyboard
             });
         } else {
-            await ctx.reply("❌ Ресурс не найден.");
+            return ctx.reply("❌ Ресурс не найден в базе данных.");
         }
     } catch (err) {
         console.error(err);
-        await ctx.reply("❌ Ошибка при получении файла.");
+        return ctx.reply("❌ Ошибка при получении файла.");
     }
 }
 
-module.exports = { checkSubscription, sendSubscriptionRequire, sendWelcomeScreen, sendCaptcha, handleFileDelivery, ADMIN_ID };
+module.exports = { checkSubscription, sendSubscriptionRequire, sendWelcomeScreen, sendCaptcha, handleFileDelivery };
