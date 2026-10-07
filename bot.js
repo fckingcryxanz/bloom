@@ -18,7 +18,7 @@ if (!DATABASE_URL) {
     process.exit(1);
 }
 
-// 1. ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ К POSTGRESQL (SSL отключен, так как pghost его не поддерживает)
+// 1. ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ К POSTGRESQL
 const db = new Client({
     connectionString: DATABASE_URL
 });
@@ -39,9 +39,9 @@ bot.on("message:text", async (ctx, next) => {
     if (entities) {
         const customEmojis = entities.filter(e => e.type === "custom_emoji");
         if (customEmojis.length > 0) {
-            let report = `🎯 **Обнаружены ID кастомных эмодзи:**\n\n`;
+            let report = "🎯 **Обнаружены ID кастомных эмодзи:**\n\n";
             customEmojis.forEach((emoji, index) => {
-                report += `${index + 1}. Код: \`\${emoji.custom_emoji_id}\`\n`;
+                report += (index + 1) + ". Код: `" + emoji.custom_emoji_id + "`\n";
             });
             await ctx.reply(report, { parse_mode: "Markdown" });
             return; 
@@ -53,7 +53,7 @@ bot.on("message:text", async (ctx, next) => {
 // 3. ОБРАБОТКА КОМАНДЫ /START
 bot.command("start", async (ctx) => {
     const userId = ctx.from.id;
-    const args = ctx.match; // Короткий ID из ссылки (например, t.me/bot?start=abc123)
+    const args = ctx.match; 
 
     // Сценарий А: Переход по короткой секретной ссылке (Скачивание файла)
     if (args) {
@@ -71,7 +71,7 @@ bot.command("start", async (ctx) => {
                 const keyboard = new InlineKeyboard().url("📢 Перейти в Bloom", "https://t.me");
 
                 await ctx.replyWithDocument(fileRow.file_id, {
-                    caption: `✨ **Ваш файл найден!**\n📦 _Имя:_ ${fileRow.file_name}`,
+                    caption: "✨ **Ваш файл найден!**\n📦 _Имя:_ " + fileRow.file_name,
                     parse_mode: "Markdown",
                     reply_markup: keyboard
                 });
@@ -97,20 +97,20 @@ bot.command("start", async (ctx) => {
             const topRes = await db.query("SELECT * FROM resources ORDER BY clicks DESC LIMIT 5");
             const topFiles = topRes.rows;
 
-            let adminMsg = `👋 **Привет, Создатель!**\n\n`;
-            adminMsg += `📊 **Статистика бота (PostgreSQL):**\n`;
-            adminMsg += ` 📁 Всего загружено файлов: \`\${totalFiles}\`\n`;
-            adminMsg += ` 📈 Всего скачиваний: \`\${totalClicks}\`\n\n`;
+            let adminMsg = "👋 **Привет, Создатель!**\n\n";
+            adminMsg += "📊 **Статистика бота (PostgreSQL):**\n";
+            adminMsg += " 📁 Всего загружено файлов: `" + totalFiles + "`\n";
+            adminMsg += " 📈 Всего скачиваний: `" + totalClicks + "`\n\n";
             
             if (topFiles.length > 0) {
-                adminMsg += `🔝 **Топ-5 скачиваемых файлов:**\n`;
+                adminMsg += "🔝 **Топ-5 скачиваемых файлов:**\n";
                 topFiles.forEach(f => {
-                    adminMsg += `• \`\${f.file_name}\` — скачан *${f.clicks}* раз(а)\n`;
+                    adminMsg += "• `" + f.file_name + "` — скачан *" + f.clicks + "* раз(а)\n";
                 });
-                adminMsg += `\n`;
+                adminMsg += "\n";
             }
             
-            adminMsg += `👉 Просто **отправь мне любой файл** (.zip, .mp3, документ), и я сделаю для него короткую ссылку со сбором статистики.`;
+            adminMsg += "👉 Просто **отправь мне любой файл** (.zip, .mp3, документ), и я сделаю для него короткую ссылку со сбором статистики.";
 
             const adminKeyboard = new InlineKeyboard().url("🛠 Настройки Bloom", "https://t.me");
             return ctx.reply(adminMsg, { parse_mode: "Markdown", reply_markup: adminKeyboard });
@@ -157,13 +157,13 @@ bot.on([":audio", ":document"], async (ctx) => {
             [shortId, fileId, fileName]
         );
 
-        const shortLink = `https://t.me{botUsername}?start=${shortId}`;
+        const shortLink = "https://t.me" + botUsername + "?start=" + shortId;
 
         await ctx.reply(
-            `📦 **Файл успешно добавлен в PostgreSQL!**\n\n` +
-            `📝 *Имя файла:* \`\${fileName}\`\n` +
-            `🔗 *Короткая ссылка:* \`\${shortLink}\`\n\n` +
-            `Статистика переходов запущена!`,
+            "📦 **Файл успешно добавлен в PostgreSQL!**\n\n" +
+            "📝 *Имя файла:* `" + fileName + "`\n" +
+            "🔗 *Короткая ссылка:* `" + shortLink + "`\n\n" +
+            "Статистика переходов запущена!",
             { parse_mode: "Markdown" }
         );
     } catch (error) {
@@ -190,7 +190,7 @@ bot.on([":audio", ":document"], async (ctx) => {
         
         const botInfo = await bot.api.getMe();
         botUsername = botInfo.username;
-        console.log(`🤖 Бот @${botUsername} успешно подключен к PostgreSQL и запущен!`);
+        console.log("🤖 Бот @" + botUsername + " успешно подключен к PostgreSQL и запущен!");
         
         bot.start();
     } catch (error) {
