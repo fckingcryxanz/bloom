@@ -15,22 +15,23 @@ async function checkSubscription(ctx, userId) {
 }
 
 async function sendSubscriptionRequire(ctx) {
-    // В кнопках разметку использовать нельзя — ставим стандартный эмодзи
+    // Устанавливаем эмодзи 6113862083017711187 на кнопку перехода на канал
     const keyboard = new InlineKeyboard()
-        .url("📢 Перейти в Bloom", "https://t.me")
+        .url("<tg-emoji emoji-id=\"6113862083017711187\">📢</tg-emoji> Перейти в Bloom", "https://t.me")
         .row()
-        .text("✔️ Я выполнил все условия - Проверить.", "check_sub");
+        .text("<tg-emoji emoji-id=\"5258420634785947640\">✔️</tg-emoji> Я выполнил все условия - Проверить.", "check_sub");
 
-    // В тексте сообщения используем HTML. Для кастомных эмодзи обязательно нужен parse_mode: "HTML"
-    const msg = "<tg-emoji emoji-id=\"5258420634785947640\">⭐</tg-emoji> <b>Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».</b>\n\n(с премиум подпиской у вас не будет никакой рекламы)";
+    const msg = "Чтобы скачать этот ресурс — выполните условия спонсоров ниже и нажмите кнопку «Проверить».\n\n*(с премиум подпиской у вас не будет никакой рекламы)*";
     
     return ctx.reply(msg, { reply_markup: keyboard, parse_mode: "HTML" });
 }
 
 async function sendWelcomeScreen(ctx) {
-    // Выводим кастомный эмодзи приветствия в текст сообщения через HTML
     const welcomeText = "<tg-emoji emoji-id=\"5406736391071635215\">👋</tg-emoji> <b>Привет! Добро пожаловать в RoomDev.</b>\n\nЗдесь ты можешь получить ресурсы с нашего Discord-сервера.\nПерейди по ссылке-инвайту, чтобы получить нужный файл.";
     const imagePath = path.join(__dirname, "images", "welcome.jpg");
+
+    const welcomeKeyboard = new InlineKeyboard()
+        .text("<tg-emoji emoji-id=\"5406736391071635215\">👋</tg-emoji> Добро пожаловать!", "welcome_click");
 
     try {
         if (fs.existsSync(imagePath)) {
@@ -61,19 +62,22 @@ async function handleFileDelivery(ctx, db, correctWord, targetShortId, userId) {
         if (res.rows && res.rows.length > 0) {
             const fileRow = res.rows[0]; 
             await db.query("UPDATE resources SET clicks = clicks + 1 WHERE short_id = $1", [targetShortId]);
-            await ctx.replyWithChatAction("upload_document");
+            await ctx.api.sendChatAction(ctx.chat.id, "upload_document");
             
             const rateRes = await db.query("SELECT COUNT(*) as count, AVG(stars) as avg_stars FROM ratings WHERE short_id = $1", [targetShortId]);
-            const count = rateRes.rows.count || 0; 
-            const avg = rateRes.rows.avg_stars ? Number(rateRes.rows.avg_stars).toFixed(1) : "0.0";
+            const count = rateRes.rows[0].count || 0; 
+            const avg = rateRes.rows[0].avg_stars ? Number(rateRes.rows[0].avg_stars).toFixed(1) : "0.0";
 
             const fileKeyboard = new InlineKeyboard()
-                .text("⭐ Оценить ресурс (" + avg + "/5)", "rate_" + targetShortId);
+                .text("<tg-emoji emoji-id=\"5404460960347890242\">⭐</tg-emoji> Оценить ресурс (" + avg + "/5)", "rate_" + targetShortId);
 
-            // Добавляем кастомные эмодзи скачивания и топа в текст через HTML
+            // 1. Установили эмодзи 6113862083017711187 на статус "Капча пройдена"
+            await ctx.reply("<tg-emoji emoji-id=\"6113862083017711187\">✅</tg-emoji> <b>Капча пройдена!</b>\nСлово: " + correctWord, { parse_mode: "HTML" });
+
+            // 2. Установили эмодзи 5407103881358380847 на "Количество отзывов"
             const captionText = "<tg-emoji emoji-id=\"5404467901015037890\">📥</tg-emoji> <b>RW " + fileRow.file_name + "</b>\n\n" +
                 "<tg-emoji emoji-id=\"5406915890639835169\">🔝</tg-emoji> Скачиваний: " + (Number(fileRow.clicks) + 1) + "\n" +
-                "⚪ Количество отзывов: " + count + "\n\n" +
+                "<tg-emoji emoji-id=\"5407103881358380847\">💬</tg-emoji> Количество отзывов: " + count + "\n\n" +
                 "Спасибо, что выбираете RoomDev!";
 
             return ctx.replyWithDocument(fileRow.file_id, {
